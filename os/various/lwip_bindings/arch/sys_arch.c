@@ -170,6 +170,15 @@ err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg) {
   return ERR_OK;
 }
 
+err_t sys_mbox_trypostI(sys_mbox_t *mbox, void *msg) {
+
+  if (chMBPostI(*mbox, (msg_t)msg) == MSG_TIMEOUT) {
+    SYS_STATS_INC(mbox.err);
+    return ERR_MEM;
+  }
+  return ERR_OK;
+}
+
 u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout) {
   systime_t tmo, start, remaining;
 
