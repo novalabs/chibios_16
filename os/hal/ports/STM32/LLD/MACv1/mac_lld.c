@@ -51,6 +51,52 @@
 #error "STM32_HCLK below minimum frequency for ETH operations (20MHz)"
 #endif
 
+#if STM32_MAC_ENABLE_PTP
+/* Examples of subsecond increment and addend values using SysClk = 144 MHz
+
+ Addend * Increment = 2^63 / SysClk
+
+ ptp_tick = Increment * 10^9 / 2^31
+
+ +-----------+-----------+------------+
+ | ptp tick  | Increment | Addend     |
+ +-----------+-----------+------------+
+ |  119 ns   |   255     | 0x0EF8B863 |
+ |  100 ns   |   215     | 0x11C1C8D5 |
+ |   50 ns   |   107     | 0x23AE0D90 |
+ |   20 ns   |    43     | 0x58C8EC2B |
+ |   14 ns   |    30     | 0x7F421F4F |
+ +-----------+-----------+------------+
+*/
+
+/* Examples of subsecond increment and addend values using SysClk = 168 MHz
+
+ Addend * Increment = 2^63 / SysClk
+
+ ptp_tick = Increment * 10^9 / 2^31
+
+ +-----------+-----------+------------+
+ | ptp tick  | Increment | Addend     |
+ +-----------+-----------+------------+
+ |  119 ns   |   255     | 0x0CD53055 |
+ |  100 ns   |   215     | 0x0F386300 |
+ |   50 ns   |   107     | 0x1E953032 |
+ |   20 ns   |    43     | 0x4C19EF00 |
+ |   14 ns   |    30     | 0x6D141AD6 |
+ +-----------+-----------+------------+
+*/
+
+#if (STM32_HCLK == 168000000)
+#define ADJ_FREQ_BASE_ADDEND      0x4C19EF00
+#elif (STM32_HCLK == 144000000)
+#define ADJ_FREQ_BASE_ADDEND      0x58C8EC2B
+#else
+#endif
+
+#define ADJ_FREQ_BASE_INCREMENT   43
+
+#endif
+
 /*===========================================================================*/
 /* Driver exported variables.                                                */
 /*===========================================================================*/
@@ -76,6 +122,10 @@ static uint32_t __eth_tb[STM32_MAC_TRANSMIT_BUFFERS][BUFFER_SIZE];
 /*===========================================================================*/
 /* Driver local functions.                                                   */
 /*===========================================================================*/
+
+#if STM32_MAC_ENABLE_PTP
+void mac_lld_ptp_start();
+#endif
 
 /**
  * @brief   Writes a PHY register.
@@ -316,7 +366,12 @@ void mac_lld_start(MACDriver *macp) {
 #endif
 
   /* MAC configuration.*/
+#if STM32_MAC_ENABLE_PTP
+  /* If we want to use PTP, we probably want to use the multicast - enable it*/
+  ETH->MACFFR    |= ETH_MACFFR_PAM;
+#else
   ETH->MACFFR    = 0;
+#endif
   ETH->MACFCR    = 0;
   ETH->MACVLANTR = 0;
 
@@ -347,15 +402,179 @@ void mac_lld_start(MACDriver *macp) {
   /* DMA general settings.*/
   ETH->DMABMR   = ETH_DMABMR_AAB | ETH_DMABMR_RDP_1Beat | ETH_DMABMR_PBL_1Beat;
 
+#if STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS
+  /* Enable the enhanced descriptors */
+  ETH->DMABMR   |= ETH_DMABMR_EDE;
+#endif
+
   /* Transmit FIFO flush.*/
   ETH->DMAOMR   = ETH_DMAOMR_FTF;
-  while (ETH->DMAOMR & ETH_DMAOMR_FTF)
+  while(ETH->DMAOMR & ETH_DMAOMR_FTF)
     ;
 
   /* DMA final configuration and start.*/
   ETH->DMAOMR   = ETH_DMAOMR_DTCEFD | ETH_DMAOMR_RSF | ETH_DMAOMR_TSF |
                   ETH_DMAOMR_ST | ETH_DMAOMR_SR;
+
+#if STM32_MAC_ENABLE_PTP
+  mac_lld_ptp_start();
+#endif
 }
+
+#if STM32_MAC_ENABLE_PTP
+#define ETH_PTP_PositiveTime      ((uint32_t)0x00000000)  /*!< Positive time value */
+#define ETH_PTP_NegativeTime      ((uint32_t)0x80000000)  /*!< Negative time value */
+
+void mac_lld_ptp_set_timestamp_update(uint32_t Sign, uint32_t SecondValue, uint32_t SubSecondValue)
+{
+  /* Set the PTP Time Update High Register */
+  ETH->PTPTSHUR = SecondValue;
+
+  /* Set the PTP Time Update Low Register with sign */
+  ETH->PTPTSLUR = Sign | SubSecondValue;
+}
+
+void mac_lld_ptp_start()
+{
+  /* Check the parameters */
+  /* Mask the Time stamp trigger interrupt by setting bit 9 in the MACIMR register. */
+  ETH->MACIMR |= ETH_MACSR_TSTS;
+
+  /* Program Time stamp register bit 0 to enable time stamping. */
+  ETH->PTPTSCR |= ETH_PTPTSCR_TSE | ETH_PTPTSSR_TSSIPV4FE | ETH_PTPTSSR_TSSIPV6FE | ETH_PTPTSSR_TSSARFE;
+
+  /* Program the Subsecond increment register based on the PTP clock frequency. */
+  ETH->PTPSSIR = ADJ_FREQ_BASE_INCREMENT;
+
+#if STM32_MAC_PTP_FINE_UPDATE
+    /* If you are using the Fine correction method, program the Time stamp addend register
+     * and set Time stamp control register bit 5 (addend register update). */
+    /* Set the PTP Time Stamp Addend Register */
+    ETH->PTPTSAR = ADJ_FREQ_BASE_ADDEND;
+
+    /* Enable the PTP block update with the Time Stamp Addend register value */
+    ETH->PTPTSCR |= ETH_PTPTSCR_TSARU;
+
+    /* Poll the Time stamp control register until bit 5 is cleared. */
+    while(ETH->PTPTSCR & ETH_PTPTSCR_TSARU)
+      ;
+#endif
+
+    /* To select the Fine correction method (if required),
+     * program Time stamp control register  bit 1. */
+#if STM32_MAC_PTP_FINE_UPDATE
+    /* Enable the PTP Fine Update method */
+	ETH->PTPTSCR |= ETH_PTPTSCR_TSFCU;
+#else
+    /* Disable the PTP Fine Update method */
+    ETH->PTPTSCR &= (~(uint32_t)ETH_PTPTSCR_TSFCU);
+#endif
+
+  /* Program the Time stamp high update and Time stamp low update registers
+   * with the appropriate time value. */
+    mac_lld_ptp_set_timestamp_update(ETH_PTP_PositiveTime, 0, 0);
+
+    /* Initialize the PTP Time Stamp */
+    ETH->PTPTSCR |= ETH_PTPTSCR_TSSTI;
+
+  /* The Time stamp counter starts operation as soon as it is initialized
+   * with the value written in the Time stamp update register. */
+}
+
+uint32_t mac_lld_ptp_subsecond_to_nanosecond(uint32_t SubSecondValue)
+{
+  uint64_t val = SubSecondValue * 1000000000ll;
+  val >>=31;
+  return val;
+}
+
+
+uint32_t mac_lld_ptp_nanosecond_to_subsecond(uint32_t SubSecondValue)
+{
+  uint64_t val = SubSecondValue * 0x80000000ll;
+  val /= 1000000000;
+  return val;
+}
+
+
+void mac_lld_ptp_get_time(struct ptptime_t * timestamp)
+{
+  timestamp->tv_nsec = mac_lld_ptp_subsecond_to_nanosecond(ETH->PTPTSLR);
+  timestamp->tv_sec = ETH->PTPTSHR;
+}
+
+
+void mac_lld_ptp_set_time(struct ptptime_t* timestamp)
+{
+	uint32_t Sign;
+	uint32_t SecondValue;
+	uint32_t NanoSecondValue;
+	uint32_t SubSecondValue;
+
+	/* determine sign and correct Second and Nanosecond values */
+	if(timestamp->tv_sec < 0 || (timestamp->tv_sec == 0 && timestamp->tv_nsec < 0))
+	{
+		Sign = ETH_PTP_NegativeTime;
+		SecondValue = -timestamp->tv_sec;
+		NanoSecondValue = -timestamp->tv_nsec;
+	}
+	else
+	{
+		Sign = ETH_PTP_PositiveTime;
+		SecondValue = timestamp->tv_sec;
+		NanoSecondValue = timestamp->tv_nsec;
+	}
+
+	/* convert nanosecond to subseconds */
+	SubSecondValue = mac_lld_ptp_nanosecond_to_subsecond(NanoSecondValue);
+
+	while(ETH->PTPTSCR & ETH_PTPTSCR_TSSTI)
+	  ;
+
+	/* Write the offset (positive or negative) in the Time stamp update high and low registers. */
+  mac_lld_ptp_set_timestamp_update(Sign, SecondValue, SubSecondValue);
+
+  /* Initialize the PTP Time Stamp */
+  ETH->PTPTSCR |= ETH_PTPTSCR_TSSTI;
+
+	/* The Time stamp counter starts operation as soon as it is initialized
+	 * with the value written in the Time stamp update register. */
+	while(ETH->PTPTSCR & ETH_PTPTSCR_TSSTI)
+	  ;
+}
+
+
+void mac_lld_ptp_adjust_frequency(int32_t Adj)
+{
+	uint32_t addend;
+
+	/* calculate the rate by which you want to speed up or slow down the system time
+		 increments */
+
+	/* precise */
+	/*
+	int64_t addend;
+	addend = Adj;
+	addend *= ADJ_FREQ_BASE_ADDEND;
+	addend /= 1000000000-Adj;
+	addend += ADJ_FREQ_BASE_ADDEND;
+	*/
+
+	/* 32bit estimation
+	ADJ_LIMIT = ((1l<<63)/275/ADJ_FREQ_BASE_ADDEND) = 11258181 = 11 258 ppm*/
+	if( Adj > 5120000) Adj = 5120000;
+	if( Adj < -5120000) Adj = -5120000;
+
+	addend = ((((275LL * Adj)>>8) * (ADJ_FREQ_BASE_ADDEND>>24))>>6) + ADJ_FREQ_BASE_ADDEND;
+
+	/* Reprogram the Time stamp addend register with new Rate value and set ETH_TPTSCR */
+	 ETH->PTPTSAR = ((uint32_t)addend);
+
+	 /* Enable the PTP block update with the Time Stamp Addend register value */
+	  ETH->PTPTSCR |= ETH_PTPTSCR_TSARU;
+
+}
+#endif
 
 /**
  * @brief   Deactivates the MAC peripheral.
@@ -464,6 +683,42 @@ void mac_lld_release_transmit_descriptor(MACTransmitDescriptor *tdp) {
   osalSysUnlock();
 }
 
+#if STM32_MAC_ENABLE_PTP
+void
+mac_lld_release_transmit_descriptor_timestamp(
+    MACTransmitDescriptor* tdp,
+	struct ptptime_t * timestamp
+)
+{
+    osalDbgAssert(!(tdp->physdesc->tdes0 & STM32_TDES0_OWN),
+                  "attempt to release descriptor already owned by DMA");
+
+    osalSysLock();
+
+    /* Unlocks the descriptor and returns it to the DMA engine.*/
+    tdp->physdesc->tdes1 = tdp->offset;
+    tdp->physdesc->tdes0 = STM32_TDES0_CIC(STM32_MAC_IP_CHECKSUM_OFFLOAD)
+                           | STM32_TDES0_IC | STM32_TDES0_LS | STM32_TDES0_FS | STM32_TDES0_TTSE
+                           | STM32_TDES0_TCH | STM32_TDES0_OWN;
+
+    /* If the DMA engine is stalled then a restart request is issued.*/
+    if ((ETH->DMASR & ETH_DMASR_TPS) == ETH_DMASR_TPS_Suspended) {
+        ETH->DMASR   = ETH_DMASR_TBUS;
+        ETH->DMATPDR = ETH_DMASR_TBUS; /* Any value is OK.*/
+    }
+
+    /* Wait for the descriptor status register TTSS flag to be set */
+    while (!(tdp->physdesc->tdes0 & STM32_TDES0_TTSS)) {}
+
+    timestamp->tv_sec = tdp->physdesc->rdes7;
+    timestamp->tv_nsec  = mac_lld_ptp_subsecond_to_nanosecond(tdp->physdesc->rdes6);
+
+    /* Clear the descriptor status TTSS register flag */
+    tdp->physdesc->tdes0 &= ~STM32_TDES0_TTSS;
+
+    osalSysUnlock();
+} // macReleaseTransmitDescriptorTimestamp
+#endif
 /**
  * @brief   Returns a receive descriptor.
  *
@@ -513,6 +768,30 @@ msg_t mac_lld_get_receive_descriptor(MACDriver *macp,
   osalSysUnlock();
   return MSG_TIMEOUT;
 }
+
+#if STM32_MAC_ENABLE_PTP
+void mac_lld_release_receive_descriptor_timestamp(MACReceiveDescriptor *rdp, struct ptptime_t* timestamp) {
+
+  osalDbgAssert(!(rdp->physdesc->rdes0 & STM32_RDES0_OWN),
+              "attempt to release descriptor already owned by DMA");
+
+  osalSysLock();
+
+  timestamp->tv_sec = rdp->physdesc->rdes7;
+  timestamp->tv_nsec  = mac_lld_ptp_subsecond_to_nanosecond(rdp->physdesc->rdes6);
+
+  /* Give buffer back to the Ethernet DMA.*/
+  rdp->physdesc->rdes0 = STM32_RDES0_OWN;
+
+  /* If the DMA engine is stalled then a restart request is issued.*/
+  if ((ETH->DMASR & ETH_DMASR_RPS) == ETH_DMASR_RPS_Suspended) {
+    ETH->DMASR   = ETH_DMASR_RBUS;
+    ETH->DMARPDR = ETH_DMASR_RBUS; /* Any value is OK.*/
+  }
+
+  osalSysUnlock();
+}
+#endif
 
 /**
  * @brief   Releases a receive descriptor.

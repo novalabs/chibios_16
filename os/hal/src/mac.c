@@ -169,6 +169,26 @@ msg_t macWaitTransmitDescriptor(MACDriver *macp,
   return msg;
 }
 
+#if MAC_USE_PTP
+/**
+ * @brief   Releases a transmit descriptor and starts the transmission of the
+ *          enqueued data as a single frame.
+ *
+ * @param[in] tdp       the pointer to the @p MACTransmitDescriptor structure
+ *
+ * @api
+ */
+void macReleaseTransmitDescriptorTimestamp(MACTransmitDescriptor *tdp, struct ptptime_t* timestamp) {
+
+  osalDbgCheck(tdp != NULL);
+
+  if(timestamp == NULL) {
+	  mac_lld_release_transmit_descriptor(tdp);
+  } else {
+	  mac_lld_release_transmit_descriptor_timestamp(tdp, timestamp);
+  }
+}
+#endif
 /**
  * @brief   Releases a transmit descriptor and starts the transmission of the
  *          enqueued data as a single frame.
@@ -182,6 +202,7 @@ void macReleaseTransmitDescriptor(MACTransmitDescriptor *tdp) {
   osalDbgCheck(tdp != NULL);
 
   mac_lld_release_transmit_descriptor(tdp);
+
 }
 
 /**
@@ -228,6 +249,28 @@ msg_t macWaitReceiveDescriptor(MACDriver *macp,
   }
   return msg;
 }
+
+
+#if MAC_USE_PTP
+/**
+ * @brief   Releases a transmit descriptor and starts the transmission of the
+ *          enqueued data as a single frame.
+ *
+ * @param[in] tdp       the pointer to the @p MACTransmitDescriptor structure
+ *
+ * @api
+ */
+void macReleaseReceiveDescriptorTimestamp(MACReceiveDescriptor *rdp, struct ptptime_t* timestamp) {
+
+  osalDbgCheck(rdp != NULL);
+
+  if(timestamp == NULL) {
+	  mac_lld_release_receive_descriptor(rdp);
+  } else {
+	  mac_lld_release_receive_descriptor_timestamp(rdp, timestamp);
+  }
+}
+#endif
 
 /**
  * @brief   Releases a receive descriptor.

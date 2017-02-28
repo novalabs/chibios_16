@@ -53,6 +53,10 @@
 #endif
 /** @} */
 
+#if !defined(MAC_USE_PTP) || defined(__DOXYGEN__)
+#define MAC_USE_PTP              FALSE
+#endif
+
 /*===========================================================================*/
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
@@ -75,6 +79,13 @@ typedef enum {
  */
 typedef struct MACDriver MACDriver;
 
+#if MAC_USE_PTP
+struct ptptime_t {
+  int32_t tv_sec;
+  int32_t tv_nsec;
+};
+#endif
+
 #include "mac_lld.h"
 
 /*===========================================================================*/
@@ -85,6 +96,13 @@ typedef struct MACDriver MACDriver;
  * @name    Macro Functions
  * @{
  */
+
+#if STM32_MAC_ENABLE_PTP
+#define macPTPSetTime(timestamp) mac_lld_ptp_set_time(timestamp)
+#define macPTPGetTime(timestamp) mac_lld_ptp_get_time(timestamp)
+#define macPTPAdjustFrequency(adjustment) mac_lld_ptp_adjust_frequency(adjustment)
+#endif
+
 /**
  * @brief   Returns the received frames event source.
  *
@@ -186,10 +204,16 @@ extern "C" {
                                   MACTransmitDescriptor *tdp,
                                   systime_t timeout);
   void macReleaseTransmitDescriptor(MACTransmitDescriptor *tdp);
+#if MAC_USE_PTP
+  void macReleaseTransmitDescriptorTimestamp(MACTransmitDescriptor *tdp, struct ptptime_t* timestamp);
+#endif
   msg_t macWaitReceiveDescriptor(MACDriver *macp,
                                  MACReceiveDescriptor *rdp,
                                  systime_t timeout);
   void macReleaseReceiveDescriptor(MACReceiveDescriptor *rdp);
+#if MAC_USE_PTP
+  void macReleaseReceiveDescriptorTimestamp(MACReceiveDescriptor *rdp, struct ptptime_t* timestamp);
+#endif
   bool macPollLinkStatus(MACDriver *macp);
 #ifdef __cplusplus
 }

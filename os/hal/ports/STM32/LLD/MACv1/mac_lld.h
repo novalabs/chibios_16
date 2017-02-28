@@ -27,6 +27,23 @@
 
 #if HAL_USE_MAC || defined(__DOXYGEN__)
 
+#ifndef STM32_MAC_ENABLE_PTP
+#define STM32_MAC_ENABLE_PTP MAC_USE_PTP
+#endif
+
+#ifndef STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS
+#define STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS MAC_USE_PTP
+#endif
+
+#ifndef STM32_MAC_PTP_FINE_UPDATE
+#define STM32_MAC_PTP_FINE_UPDATE FALSE
+#endif
+
+#if STM32_MAC_ENABLE_PTP && !STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS
+#error "STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS must be TRUE if STM32_MAC_ENABLE_PTP is TRUE"
+#endif
+
+
 /*===========================================================================*/
 /* Driver constants.                                                         */
 /*===========================================================================*/
@@ -206,6 +223,12 @@ typedef struct {
   volatile uint32_t     rdes1;
   volatile uint32_t     rdes2;
   volatile uint32_t     rdes3;
+#if STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS
+  volatile uint32_t     rdes4;
+  volatile uint32_t     rdes5;
+  volatile uint32_t     rdes6; // Low
+  volatile uint32_t     rdes7; // High
+#endif
 } stm32_eth_rx_descriptor_t;
 
 /**
@@ -216,6 +239,12 @@ typedef struct {
   volatile uint32_t     tdes1;
   volatile uint32_t     tdes2;
   volatile uint32_t     tdes3;
+#if STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS
+  volatile uint32_t     rdes4;
+  volatile uint32_t     rdes5;
+  volatile uint32_t     rdes6; // Low
+  volatile uint32_t     rdes7; // High
+#endif
 } stm32_eth_tx_descriptor_t;
 
 /**
@@ -352,6 +381,21 @@ extern "C" {
   const uint8_t *mac_lld_get_next_receive_buffer(MACReceiveDescriptor *rdp,
                                                  size_t *sizep);
 #endif /* MAC_USE_ZERO_COPY */
+
+#if STM32_MAC_ENABLE_PTP
+  void mac_lld_ptp_set_time(struct ptptime_t* timestamp);
+  void mac_lld_ptp_get_time(struct ptptime_t* timestamp);
+  void mac_lld_ptp_adjust_frequency(int32_t adjustment);
+  void mac_lld_release_transmit_descriptor_timestamp(
+      MACTransmitDescriptor* tdp,
+  	  struct ptptime_t * timestamp
+  );
+  void mac_lld_release_receive_descriptor_timestamp(
+      MACReceiveDescriptor* rdp,
+  	  struct ptptime_t * timestamp
+  );
+#endif
+
 #ifdef __cplusplus
 }
 #endif
