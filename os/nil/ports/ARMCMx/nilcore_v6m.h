@@ -88,7 +88,7 @@
  *          handler for preemption instead of the NMI handler.
  */
 #ifndef CORTEX_ALTERNATE_SWITCH
-#define CORTEX_ALTERNATE_SWITCH         FALSE
+#define CORTEX_ALTERNATE_SWITCH         TRUE // DAVIDE
 #endif
 
 /*===========================================================================*/
