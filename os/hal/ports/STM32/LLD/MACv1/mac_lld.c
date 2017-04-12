@@ -34,6 +34,8 @@
 /* Driver local definitions.                                                 */
 /*===========================================================================*/
 
+#define PHY_READ_TO                     ((uint32_t)0x0004FFFF)
+
 #define BUFFER_SIZE ((((STM32_MAC_BUFFERS_SIZE - 1) | 3) + 1) / 4)
 
 /* MII divider optimal value.*/
@@ -708,10 +710,18 @@ mac_lld_release_transmit_descriptor_timestamp(
     }
 
     /* Wait for the descriptor status register TTSS flag to be set */
-    while (!(tdp->physdesc->tdes0 & STM32_TDES0_TTSS)) {}
+    uint32_t timeout =  PHY_READ_TO;
+    while (!(tdp->physdesc->tdes0 & STM32_TDES0_TTSS) && (timeout > 0)) {
+        timeout--;
+    }
 
-    timestamp->tv_sec = tdp->physdesc->rdes7;
-    timestamp->tv_nsec  = mac_lld_ptp_subsecond_to_nanosecond(tdp->physdesc->rdes6);
+    if(timeout == 0) {
+        timestamp->tv_sec = 0;
+        timestamp->tv_nsec = 0;
+    } else {
+        timestamp->tv_sec = tdp->physdesc->rdes7;
+        timestamp->tv_nsec  = mac_lld_ptp_subsecond_to_nanosecond(tdp->physdesc->rdes6);
+    }
 
     /* Clear the descriptor status TTSS register flag */
     tdp->physdesc->tdes0 &= ~STM32_TDES0_TTSS;
