@@ -34,6 +34,19 @@
 #define MAX_FILLER 11
 #define FLOAT_PRECISION 9
 
+#ifdef CHXPRINTF_DEVICE
+int chxprintf(const char* fmt, ...) {
+  va_list ap;
+  int formatted_bytes;
+
+  va_start(ap, fmt);
+  formatted_bytes = chvprintf((BaseSequentialStream*)(&CHXPRINTF_DEVICE), fmt, ap);
+  va_end(ap);
+
+  return formatted_bytes;
+}
+#endif
+
 static char *long_to_string_with_divisor(char *p,
                                          long num,
                                          unsigned radix,
