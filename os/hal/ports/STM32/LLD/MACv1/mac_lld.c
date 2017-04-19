@@ -672,9 +672,9 @@ void mac_lld_release_transmit_descriptor(MACTransmitDescriptor *tdp) {
 
   /* Unlocks the descriptor and returns it to the DMA engine.*/
   tdp->physdesc->tdes1 = tdp->offset;
-  tdp->physdesc->tdes0 = STM32_TDES0_CIC(STM32_MAC_IP_CHECKSUM_OFFLOAD) |
-                         STM32_TDES0_IC | STM32_TDES0_LS | STM32_TDES0_FS |
-                         STM32_TDES0_TCH | STM32_TDES0_OWN;
+  tdp->physdesc->tdes0 = STM32_TDES0_CIC1(STM32_MAC_IP_CHECKSUM_OFFLOAD) | STM32_TDES0_CIC0(STM32_MAC_IP_CHECKSUM_OFFLOAD)
+                         | STM32_TDES0_IC | STM32_TDES0_LS | STM32_TDES0_FS
+                         | STM32_TDES0_TCH | STM32_TDES0_OWN;
 
   /* If the DMA engine is stalled then a restart request is issued.*/
   if ((ETH->DMASR & ETH_DMASR_TPS) == ETH_DMASR_TPS_Suspended) {
@@ -699,7 +699,7 @@ mac_lld_release_transmit_descriptor_timestamp(
 
     /* Unlocks the descriptor and returns it to the DMA engine.*/
     tdp->physdesc->tdes1 = tdp->offset;
-    tdp->physdesc->tdes0 = STM32_TDES0_CIC(STM32_MAC_IP_CHECKSUM_OFFLOAD)
+    tdp->physdesc->tdes0 = STM32_TDES0_CIC1(STM32_MAC_IP_CHECKSUM_OFFLOAD) | STM32_TDES0_CIC0(STM32_MAC_IP_CHECKSUM_OFFLOAD)
                            | STM32_TDES0_IC | STM32_TDES0_LS | STM32_TDES0_FS | STM32_TDES0_TTSE
                            | STM32_TDES0_TCH | STM32_TDES0_OWN;
 
@@ -719,8 +719,8 @@ mac_lld_release_transmit_descriptor_timestamp(
         timestamp->tv_sec = 0;
         timestamp->tv_nsec = 0;
     } else {
-        timestamp->tv_sec = tdp->physdesc->rdes7;
-        timestamp->tv_nsec  = mac_lld_ptp_subsecond_to_nanosecond(tdp->physdesc->rdes6);
+        timestamp->tv_sec = tdp->physdesc->tdes7;
+        timestamp->tv_nsec  = mac_lld_ptp_subsecond_to_nanosecond(tdp->physdesc->tdes6);
     }
 
     /* Clear the descriptor status TTSS register flag */
@@ -754,8 +754,8 @@ msg_t mac_lld_get_receive_descriptor(MACDriver *macp,
   while (!(rdes->rdes0 & STM32_RDES0_OWN)) {
     if (!(rdes->rdes0 & (STM32_RDES0_AFM | STM32_RDES0_ES))
 #if STM32_MAC_IP_CHECKSUM_OFFLOAD
-        && (rdes->rdes0 & STM32_RDES0_FT)
-        && !(rdes->rdes0 & (STM32_RDES0_IPHCE | STM32_RDES0_PCE))
+        /* If the checksum offload is enabled (MACCR->IPCO), the extended descriptors are used. */
+        && !(rdes->rdes4 & (STM32_RDES4_IPHE | STM32_RDES4_IPPE))
 #endif
         && (rdes->rdes0 & STM32_RDES0_FS) && (rdes->rdes0 & STM32_RDES0_LS)) {
       /* Found a valid one.*/

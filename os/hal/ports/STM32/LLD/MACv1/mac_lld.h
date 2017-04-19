@@ -43,6 +43,9 @@
 #error "STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS must be TRUE if STM32_MAC_ENABLE_PTP is TRUE"
 #endif
 
+#if STM32_MAC_IP_CHECKSUM_OFFLOAD && !STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS
+#error "STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS must be TRUE if STM32_MAC_IP_CHECKSUM_OFFLOAD is TRUE"
+#endif
 
 /*===========================================================================*/
 /* Driver constants.                                                         */
@@ -90,6 +93,18 @@
 /** @} */
 
 /**
+ * @name    RDES4 constants
+ * @{
+ */
+#define STM32_RDES4_IPV6PR          0x00000080 // IPv6 packet received
+#define STM32_RDES4_IPV4PR          0x00000040 // IPv4 packet received
+#define STM32_RDES4_IPCB            0x00000020 // IP checksum bypassed
+#define STM32_RDES4_IPPE            0x00000010 // IP payload error
+#define STM32_RDES4_IPHE            0x00000008 // IP header error
+#define STM32_RDES4_IPPT_MASK       0x00000007 // IP payload type
+  /** @} */
+
+/**
  * @name    TDES0 constants
  * @{
  */
@@ -102,7 +117,8 @@
 #define STM32_TDES0_TTSE            0x02000000
 #define STM32_TDES0_LOCKED          0x01000000 /* NOTE: Pseudo flag.        */
 #define STM32_TDES0_CIC_MASK        0x00C00000
-#define STM32_TDES0_CIC(n)          ((n) << 22)
+#define STM32_TDES0_CIC1(n)         ((n) << 23)
+#define STM32_TDES0_CIC0(n)         ((n) << 22)
 #define STM32_TDES0_TER             0x00200000
 #define STM32_TDES0_TCH             0x00100000
 #define STM32_TDES0_TTSS            0x00020000
@@ -240,10 +256,10 @@ typedef struct {
   volatile uint32_t     tdes2;
   volatile uint32_t     tdes3;
 #if STM32_MAC_USE_ENHANCED_DMA_DESCRIPTORS
-  volatile uint32_t     rdes4;
-  volatile uint32_t     rdes5;
-  volatile uint32_t     rdes6; // Low
-  volatile uint32_t     rdes7; // High
+  volatile uint32_t     tdes4;
+  volatile uint32_t     tdes5;
+  volatile uint32_t     tdes6; // Low
+  volatile uint32_t     tdes7; // High
 #endif
 } stm32_eth_tx_descriptor_t;
 
