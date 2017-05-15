@@ -74,10 +74,15 @@ typedef uint32_t        mem_ptr_t;
 
 #define LWIP_PLATFORM_DIAG(x)  do { chxprintf x;} while(0)
 #define LWIP_PLATFORM_ASSERT(x) {                                       \
-  osalSysHalt(x);                                                          \
+  osalSysHalt(x);                                                       \
 }
 
 #define BYTE_ORDER LITTLE_ENDIAN
 #define LWIP_PROVIDE_ERRNO
+
+// We take them for granted
+#define LWIP_PLATFORM_BYTESWAP 1
+#define LWIP_PLATFORM_HTONS(x) __REV16(x)
+#define LWIP_PLATFORM_HTONL(x) __REV(x)
 
 #endif /* __CC_H__ */
