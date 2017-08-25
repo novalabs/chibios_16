@@ -76,7 +76,7 @@ typedef uint32_t        mem_ptr_t;
 #define LWIP_PLATFORM_ASSERT(x) {                                       \
   osalSysHalt(x);                                                       \
 }
-
+#undef BYTE_ORDER // GCC defines something with the same name
 #define BYTE_ORDER LITTLE_ENDIAN
 #define LWIP_PROVIDE_ERRNO
 
