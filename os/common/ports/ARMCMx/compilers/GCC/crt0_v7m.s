@@ -168,6 +168,8 @@
                 .thumb_func
                 .global Reset_Handler
 Reset_Handler:
+				bl __reset_handler
+
                 /* Interrupts are globally masked initially.*/
                 cpsid   i
 

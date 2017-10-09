@@ -124,6 +124,17 @@ static const ram_init_area_t ram_areas[CRT1_AREAS_NUMBER] = {
 /*===========================================================================*/
 
 /**
+ * @brief   Reset handler.
+ * @details This hook is firstly invoked in the reset handler
+ * @note    This function is a weak symbol.
+ */
+#if !defined(__DOXYGEN__)
+__attribute__((weak))
+#endif
+/*lint -save -e9075 [8.4] All symbols are invoked from asm context.*/
+void __reset_handler(void) {}
+
+/**
  * @brief   Architecture-dependent core initialization.
  * @details This hook is invoked immediately after the stack initialization
  *          and before the DATA and BSS segments initialization.
