@@ -67,6 +67,25 @@ SECTIONS
         __fini_array_end = .;
     } > flash
 
+    .tags : ALIGN(4) SUBALIGN(4)
+    {
+        KEEP(*(.tags)) ;
+    } > flash
+
+    .core_git_desc : ALIGN(4) SUBALIGN(4)
+    {
+        __core_git_desc_start = .;
+        KEEP(*(.core_git_desc)) ;
+        __core_git_desc_end = .;
+    } > flash
+    
+    .wrks_git_desc : ALIGN(4) SUBALIGN(4)
+    {
+        __wrks_git_desc_start = .;
+        KEEP(*(.wrks_git_desc)) ;
+        __wrks_git_desc_end = .;
+    } > flash
+
     .text : ALIGN(16) SUBALIGN(16)
     {
         *(.text)
