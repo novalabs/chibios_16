@@ -110,25 +110,6 @@ SECTIONS
         . = ALIGN(8);
     } > flash
 
-        .core_git_desc : ALIGN(16) SUBALIGN(16)
-    {
-        __core_git_desc_start = .;
-        KEEP(*(.core_git_desc)) ;
-        __core_git_desc_end = .;
-    } > flash
-    
-    .wrks_git_desc : ALIGN(16) SUBALIGN(16)
-    {
-        __wrks_git_desc_start = .;
-        KEEP(*(.wrks_git_desc)) ;
-        __wrks_git_desc_end = .;
-    } > flash
-
-    .tags : ALIGN(16) SUBALIGN(4)
-    {
-        KEEP(*(.tags)) ;
-    } > flash
-    
     /* Legacy symbol, not used anywhere.*/
     . = ALIGN(4);
     PROVIDE(_etext = .);
@@ -386,4 +367,24 @@ SECTIONS
     {
       *(.vector_table)
     } > vtram
+    
+    /* Tags */
+    .core_git_desc : ALIGN(16) SUBALIGN(16)
+    {
+        __core_git_desc_start = .;
+        KEEP(*(.core_git_desc)) ;
+        __core_git_desc_end = .;
+    } > flash
+    
+    .wrks_git_desc : ALIGN(16) SUBALIGN(16)
+    {
+        __wrks_git_desc_start = .;
+        KEEP(*(.wrks_git_desc)) ;
+        __wrks_git_desc_end = .;
+    } > flash
+
+    .tags : ALIGN(16) SUBALIGN(4)
+    {
+        KEEP(*(.tags)) ;
+    } > flash
 }
