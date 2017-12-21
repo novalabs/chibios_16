@@ -90,6 +90,17 @@ PWMDriver PWMD8;
 PWMDriver PWMD9;
 #endif
 
+/**
+ * @brief   PWMD15 driver identifier.
+ * @note    The driver PWMD15 allocates the timer TIM15 when enabled.
+ */
+#if STM32_PWM_USE_TIM15 || defined(__DOXYGEN__)
+#if !defined(STM32F0)
+#error "Cannot use TIM15 on this device"
+#endif
+PWMDriver PWMD15;
+#endif
+
 /*===========================================================================*/
 /* Driver local variables and types.                                         */
 /*===========================================================================*/
@@ -295,6 +306,27 @@ OSAL_IRQ_HANDLER(STM32_TIM9_HANDLER) {
 #endif /* !defined(STM32_TIM9_SUPPRESS_ISR) */
 #endif /* STM32_PWM_USE_TIM9 */
 
+#if STM32_PWM_USE_TIM15 || defined(__DOXYGEN__)
+#if !defined(STM32_TIM15_SUPPRESS_ISR)
+#if !defined(STM32_TIM15_HANDLER)
+#error "STM32_TIM15_HANDLER not defined"
+#endif
+/**
+ * @brief   TIM15 interrupt handler.
+ *
+ * @isr
+ */
+OSAL_IRQ_HANDLER(STM32_TIM15_HANDLER) {
+
+  OSAL_IRQ_PROLOGUE();
+
+  pwm_lld_serve_interrupt(&PWMD15);
+
+  OSAL_IRQ_EPILOGUE();
+}
+#endif /* !defined(STM32_TIM15_SUPPRESS_ISR) */
+#endif /* STM32_PWM_USE_TIM15 */
+
 /*===========================================================================*/
 /* Driver exported functions.                                                */
 /*===========================================================================*/
@@ -353,6 +385,13 @@ void pwm_lld_init(void) {
   pwmObjectInit(&PWMD9);
   PWMD9.channels = STM32_TIM9_CHANNELS;
   PWMD9.tim = STM32_TIM9;
+#endif
+
+#if STM32_PWM_USE_TIM15
+  /* Driver initialization.*/
+  pwmObjectInit(&PWMD15);
+  PWMD15.channels = STM32_TIM15_CHANNELS;
+  PWMD15.tim = STM32_TIM15;
 #endif
 }
 
@@ -478,6 +517,21 @@ void pwm_lld_start(PWMDriver *pwmp) {
     }
 #endif
 
+#if STM32_PWM_USE_TIM15
+    if (&PWMD15 == pwmp) {
+      rccEnableTIM15(FALSE);
+      rccResetTIM15();
+#if !defined(STM32_TIM15_SUPPRESS_ISR)
+      nvicEnableVector(STM32_TIM15_NUMBER, STM32_PWM_TIM15_IRQ_PRIORITY);
+#endif
+#if defined(STM32_TIM15CLK)
+      pwmp->clock = STM32_TIM15CLK;
+#else
+      pwmp->clock = STM32_TIMCLK2;
+#endif
+    }
+#endif
+
     /* All channels configured in PWM1 mode with preload enabled and will
        stay that way until the driver is stopped.*/
     pwmp->tim->CCMR1 = STM32_TIM_CCMR1_OC1M(6) | STM32_TIM_CCMR1_OC1PE |
@@ -583,6 +637,18 @@ void pwm_lld_start(PWMDriver *pwmp) {
       ;
     }
   }
+#if STM32_PWM_USE_TIM15
+  if (&PWMD15 == pwmp) {
+    switch (pwmp->config->channels[0].mode & PWM_COMPLEMENTARY_OUTPUT_MASK) {
+    case PWM_COMPLEMENTARY_OUTPUT_ACTIVE_LOW:
+      ccer |= STM32_TIM_CCER_CC1NP;
+    case PWM_COMPLEMENTARY_OUTPUT_ACTIVE_HIGH:
+      ccer |= STM32_TIM_CCER_CC1NE;
+    default:
+      ;
+    }
+  }
+#endif
 #endif /* STM32_PWM_USE_ADVANCED*/
 
   pwmp->tim->CCER  = ccer;
@@ -590,7 +656,7 @@ void pwm_lld_start(PWMDriver *pwmp) {
   pwmp->tim->SR    = 0;                     /* Clear pending IRQs.          */
   pwmp->tim->DIER  = pwmp->config->dier &   /* DMA-related DIER settings.   */
                      ~STM32_TIM_DIER_IRQ_MASK;
-#if STM32_PWM_USE_TIM1 || STM32_PWM_USE_TIM8
+#if STM32_PWM_USE_TIM1 || STM32_PWM_USE_TIM8 || STM32_PWM_USE_TIM15
 #if STM32_PWM_USE_ADVANCED
   pwmp->tim->BDTR  = pwmp->config->bdtr | STM32_TIM_BDTR_MOE;
 #else
@@ -682,6 +748,15 @@ void pwm_lld_stop(PWMDriver *pwmp) {
       nvicDisableVector(STM32_TIM9_NUMBER);
 #endif
       rccDisableTIM9(FALSE);
+    }
+#endif
+
+#if STM32_PWM_USE_TIM15
+    if (&PWMD15 == pwmp) {
+#if !defined(STM32_TIM15_SUPPRESS_ISR)
+      nvicDisableVector(STM32_TIM15_NUMBER);
+#endif
+      rccDisableTIM15(FALSE);
     }
 #endif
   }
