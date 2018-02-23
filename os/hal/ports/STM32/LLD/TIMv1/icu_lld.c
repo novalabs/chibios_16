@@ -94,6 +94,22 @@ ICUDriver ICUD8;
 ICUDriver ICUD9;
 #endif
 
+/**
+ * @brief   ICUD14 driver identifier.
+ * @note    The driver ICUD14 allocates the timer TIM14 when enabled.
+ */
+#if STM32_ICU_USE_TIM14 || defined(__DOXYGEN__)
+ICUDriver ICUD14;
+#endif
+
+/**
+ * @brief   ICUD15 driver identifier.
+ * @note    The driver ICUD15 allocates the timer TIM15 when enabled.
+ */
+#if STM32_ICU_USE_TIM15 || defined(__DOXYGEN__)
+ICUDriver ICUD15;
+#endif
+
 /*===========================================================================*/
 /* Driver local variables and types.                                         */
 /*===========================================================================*/
@@ -323,6 +339,48 @@ OSAL_IRQ_HANDLER(STM32_TIM9_HANDLER) {
 #endif /* !defined(STM32_TIM9_SUPPRESS_ISR) */
 #endif /* STM32_ICU_USE_TIM9 */
 
+#if STM32_ICU_USE_TIM14 || defined(__DOXYGEN__)
+#if !defined(STM32_TIM14_SUPPRESS_ISR)
+#if !defined(STM32_TIM14_HANDLER)
+#error "STM32_TIM14_HANDLER not defined"
+#endif
+/**
+ * @brief   TIM14 interrupt handler.
+ *
+ * @isr
+ */
+OSAL_IRQ_HANDLER(STM32_TIM14_HANDLER) {
+
+  OSAL_IRQ_PROLOGUE();
+
+  icu_lld_serve_interrupt(&ICUD14);
+
+  OSAL_IRQ_EPILOGUE();
+}
+#endif /* !defined(STM32_TIM14_SUPPRESS_ISR) */
+#endif /* STM32_ICU_USE_TIM14 */
+
+#if STM32_ICU_USE_TIM15 || defined(__DOXYGEN__)
+#if !defined(STM32_TIM15_SUPPRESS_ISR)
+#if !defined(STM32_TIM15_HANDLER)
+#error "STM32_TIM15_HANDLER not defined"
+#endif
+/**
+ * @brief   TIM15 interrupt handler.
+ *
+ * @isr
+ */
+OSAL_IRQ_HANDLER(STM32_TIM15_HANDLER) {
+
+  OSAL_IRQ_PROLOGUE();
+
+  icu_lld_serve_interrupt(&ICUD15);
+
+  OSAL_IRQ_EPILOGUE();
+}
+#endif /* !defined(STM32_TIM15_SUPPRESS_ISR) */
+#endif /* STM32_ICU_USE_TIM15 */
+
 /*===========================================================================*/
 /* Driver exported functions.                                                */
 /*===========================================================================*/
@@ -374,6 +432,18 @@ void icu_lld_init(void) {
   /* Driver initialization.*/
   icuObjectInit(&ICUD9);
   ICUD9.tim = STM32_TIM9;
+#endif
+
+#if STM32_ICU_USE_TIM14
+  /* Driver initialization.*/
+  icuObjectInit(&ICUD14);
+  ICUD14.tim = STM32_TIM14;
+#endif
+
+#if STM32_ICU_USE_TIM15
+  /* Driver initialization.*/
+  icuObjectInit(&ICUD15);
+  ICUD15.tim = STM32_TIM15;
 #endif
 }
 
@@ -499,6 +569,37 @@ void icu_lld_start(ICUDriver *icup) {
 #endif
     }
 #endif
+
+#if STM32_ICU_USE_TIM14
+    if (&ICUD14 == icup) {
+      rccEnableTIM14(FALSE);
+      rccResetTIM14();
+#if !defined(STM32_TIM14_SUPPRESS_ISR)
+      nvicEnableVector(STM32_TIM14_NUMBER, STM32_ICU_TIM14_IRQ_PRIORITY);
+#endif
+#if defined(STM32_TIM14CLK)
+      icup->clock = STM32_TIM14CLK;
+#else
+      icup->clock = STM32_TIMCLK2;
+#endif
+    }
+#endif
+
+#if STM32_ICU_USE_TIM15
+    if (&ICUD15 == icup) {
+      rccEnableTIM15(FALSE);
+      rccResetTIM15();
+#if !defined(STM32_TIM15_SUPPRESS_ISR)
+      nvicEnableVector(STM32_TIM15_NUMBER, STM32_ICU_TIM15_IRQ_PRIORITY);
+#endif
+#if defined(STM32_TIM15CLK)
+      icup->clock = STM32_TIM15CLK;
+#else
+      icup->clock = STM32_TIMCLK2;
+#endif
+    }
+#endif
+
   }
   else {
     /* Driver re-configuration scenario, it must be stopped first.*/
@@ -648,6 +749,24 @@ void icu_lld_stop(ICUDriver *icup) {
       nvicDisableVector(STM32_TIM9_NUMBER);
 #endif
       rccDisableTIM9(FALSE);
+    }
+#endif
+
+#if STM32_ICU_USE_TIM14
+    if (&ICUD14 == icup) {
+#if !defined(STM32_TIM14_SUPPRESS_ISR)
+      nvicDisableVector(STM32_TIM14_NUMBER);
+#endif
+      rccDisableTIM14(FALSE);
+    }
+#endif
+
+#if STM32_ICU_USE_TIM15
+    if (&ICUD15 == icup) {
+#if !defined(STM32_TIM15_SUPPRESS_ISR)
+      nvicDisableVector(STM32_TIM15_NUMBER);
+#endif
+      rccDisableTIM15(FALSE);
     }
 #endif
   }
