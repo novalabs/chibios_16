@@ -95,14 +95,6 @@ ICUDriver ICUD9;
 #endif
 
 /**
- * @brief   ICUD14 driver identifier.
- * @note    The driver ICUD14 allocates the timer TIM14 when enabled.
- */
-#if STM32_ICU_USE_TIM14 || defined(__DOXYGEN__)
-ICUDriver ICUD14;
-#endif
-
-/**
  * @brief   ICUD15 driver identifier.
  * @note    The driver ICUD15 allocates the timer TIM15 when enabled.
  */
@@ -339,27 +331,6 @@ OSAL_IRQ_HANDLER(STM32_TIM9_HANDLER) {
 #endif /* !defined(STM32_TIM9_SUPPRESS_ISR) */
 #endif /* STM32_ICU_USE_TIM9 */
 
-#if STM32_ICU_USE_TIM14 || defined(__DOXYGEN__)
-#if !defined(STM32_TIM14_SUPPRESS_ISR)
-#if !defined(STM32_TIM14_HANDLER)
-#error "STM32_TIM14_HANDLER not defined"
-#endif
-/**
- * @brief   TIM14 interrupt handler.
- *
- * @isr
- */
-OSAL_IRQ_HANDLER(STM32_TIM14_HANDLER) {
-
-  OSAL_IRQ_PROLOGUE();
-
-  icu_lld_serve_interrupt(&ICUD14);
-
-  OSAL_IRQ_EPILOGUE();
-}
-#endif /* !defined(STM32_TIM14_SUPPRESS_ISR) */
-#endif /* STM32_ICU_USE_TIM14 */
-
 #if STM32_ICU_USE_TIM15 || defined(__DOXYGEN__)
 #if !defined(STM32_TIM15_SUPPRESS_ISR)
 #if !defined(STM32_TIM15_HANDLER)
@@ -432,12 +403,6 @@ void icu_lld_init(void) {
   /* Driver initialization.*/
   icuObjectInit(&ICUD9);
   ICUD9.tim = STM32_TIM9;
-#endif
-
-#if STM32_ICU_USE_TIM14
-  /* Driver initialization.*/
-  icuObjectInit(&ICUD14);
-  ICUD14.tim = STM32_TIM14;
 #endif
 
 #if STM32_ICU_USE_TIM15
@@ -564,21 +529,6 @@ void icu_lld_start(ICUDriver *icup) {
 #endif
 #if defined(STM32_TIM9CLK)
       icup->clock = STM32_TIM9CLK;
-#else
-      icup->clock = STM32_TIMCLK2;
-#endif
-    }
-#endif
-
-#if STM32_ICU_USE_TIM14
-    if (&ICUD14 == icup) {
-      rccEnableTIM14(FALSE);
-      rccResetTIM14();
-#if !defined(STM32_TIM14_SUPPRESS_ISR)
-      nvicEnableVector(STM32_TIM14_NUMBER, STM32_ICU_TIM14_IRQ_PRIORITY);
-#endif
-#if defined(STM32_TIM14CLK)
-      icup->clock = STM32_TIM14CLK;
 #else
       icup->clock = STM32_TIMCLK2;
 #endif
@@ -749,15 +699,6 @@ void icu_lld_stop(ICUDriver *icup) {
       nvicDisableVector(STM32_TIM9_NUMBER);
 #endif
       rccDisableTIM9(FALSE);
-    }
-#endif
-
-#if STM32_ICU_USE_TIM14
-    if (&ICUD14 == icup) {
-#if !defined(STM32_TIM14_SUPPRESS_ISR)
-      nvicDisableVector(STM32_TIM14_NUMBER);
-#endif
-      rccDisableTIM14(FALSE);
     }
 #endif
 
