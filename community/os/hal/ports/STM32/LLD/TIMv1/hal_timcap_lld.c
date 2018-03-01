@@ -104,6 +104,14 @@ TIMCAPDriver TIMCAPD9;
 #endif
 
 /**
+ * @brief   TIMCAPD14 driver identifier.
+ * @note    The driver TIMCAPD14 allocates the timer TIM14 when enabled.
+ */
+#if STM32_TIMCAP_USE_TIM14 || defined(__DOXYGEN__)
+TIMCAPDriver TIMCAPD14;
+#endif
+
+/**
  * @brief   TIMCAPD17 driver identifier.
  * @note    The driver TIMCAPD17 allocates the timer TIM17 when enabled.
  */
@@ -171,6 +179,12 @@ static timcapchannel_t timcap_get_max_timer_channel(const TIMCAPDriver *timcapp)
   }
 #endif
 
+#if STM32_TIMCAP_USE_TIM14 || defined(__DOXYGEN__)
+  if( timcapp == &TIMCAPD14 ) {
+    return(TIMCAP_CHANNEL_1);
+  }
+#endif
+
 #if STM32_TIMCAP_USE_TIM17 || defined(__DOXYGEN__)
   if( timcapp == &TIMCAPD17 ) {
     return(TIMCAP_CHANNEL_1);
@@ -227,6 +241,12 @@ static uint32_t timcap_get_max_arr(const TIMCAPDriver *timcapp) {
 
 #if STM32_TIMCAP_USE_TIM9 || defined(__DOXYGEN__)
   if( timcapp == &TIMCAPD9 ) {
+    return(UINT16_MAX);
+  }
+#endif
+
+#if STM32_TIMCAP_USE_TIM14 || defined(__DOXYGEN__)
+  if( timcapp == &TIMCAPD14 ) {
     return(UINT16_MAX);
   }
 #endif
@@ -467,6 +487,28 @@ CH_IRQ_HANDLER(STM32_TIM9_HANDLER) {
 }
 #endif /* STM32_TIMCAP_USE_TIM9 */
 
+#if STM32_TIMCAP_USE_TIM14
+#if !defined(STM32_TIM14_HANDLER)
+#error "STM32_TIM14_HANDLER not defined"
+#endif
+/**
+ * @brief   TIM14 interrupt handler.
+ * @note    It is assumed that the various sources are only activated if the
+ *          associated callback pointer is not equal to @p NULL in order to not
+ *          perform an extra check in a potentially critical interrupt handler.
+ *
+ * @isr
+ */
+CH_IRQ_HANDLER(STM32_TIM14_HANDLER) {
+
+  CH_IRQ_PROLOGUE();
+
+  timcap_lld_serve_interrupt(&TIMCAPD14);
+
+  CH_IRQ_EPILOGUE();
+}
+#endif /* STM32_TIMCAP_USE_TIM14 */
+
 #if STM32_TIMCAP_USE_TIM17
 #if !defined(STM32_TIM17_HANDLER)
 #error "STM32_TIM17_HANDLER not defined"
@@ -540,6 +582,12 @@ void timcap_lld_init(void) {
   /* Driver initialization.*/
   timcapObjectInit(&TIMCAPD9);
   TIMCAPD9.tim = STM32_TIM9;
+#endif
+
+#if STM32_TIMCAP_USE_TIM14
+  /* Driver initialization.*/
+  timcapObjectInit(&TIMCAPD14);
+  TIMCAPD14.tim = STM32_TIM14;
 #endif
 
 #if STM32_TIMCAP_USE_TIM17
@@ -626,6 +674,14 @@ void timcap_lld_start(TIMCAPDriver *timcapp) {
       rccEnableTIM9(FALSE);
       rccResetTIM9();
       nvicEnableVector(STM32_TIM9_NUMBER, STM32_TIMCAP_TIM9_IRQ_PRIORITY);
+      timcapp->clock = STM32_TIMCLK1;
+    }
+#endif
+#if STM32_TIMCAP_USE_TIM14
+    if (&TIMCAPD14 == timcapp) {
+      rccEnableTIM14(FALSE);
+      rccResetTIM14();
+      nvicEnableVector(STM32_TIM14_NUMBER, STM32_TIMCAP_TIM14_IRQ_PRIORITY);
       timcapp->clock = STM32_TIMCLK1;
     }
 #endif
@@ -808,6 +864,12 @@ void timcap_lld_stop(TIMCAPDriver *timcapp) {
     if (&TIMCAPD9 == timcapp) {
       nvicDisableVector(STM32_TIM9_NUMBER);
       rccDisableTIM9(FALSE);
+    }
+#endif
+#if STM32_TIMCAP_USE_TIM14
+    if (&TIMCAPD14 == timcapp) {
+      nvicDisableVector(STM32_TIM14_NUMBER);
+      rccDisableTIM14(FALSE);
     }
 #endif
 #if STM32_TIMCAP_USE_TIM17

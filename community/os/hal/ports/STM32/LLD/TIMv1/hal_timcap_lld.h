@@ -108,6 +108,15 @@
 #endif
 
 /**
+ * @brief   TIMCAPD14 driver enable switch.
+ * @details If set to @p TRUE the support for TIMCAPD14 is included.
+ * @note    The default is @p TRUE.
+ */
+#if !defined(STM32_TIMCAP_USE_TIM14) || defined(__DOXYGEN__)
+#define STM32_TIMCAP_USE_TIM14                 FALSE
+#endif
+
+/**
  * @brief   TIMCAPD17 driver enable switch.
  * @details If set to @p TRUE the support for TIMCAPD17 is included.
  * @note    The default is @p TRUE.
@@ -167,6 +176,14 @@
 /** @} */
 
 /**
+ * @brief   TIMCAPD14 interrupt priority level setting.
+ */
+#if !defined(STM32_TIMCAP_TIM14_IRQ_PRIORITY) || defined(__DOXYGEN__)
+#define STM32_TIMCAP_TIM14_IRQ_PRIORITY        7
+#endif
+/** @} */
+
+/**
  * @brief   TIMCAPD17 interrupt priority level setting.
  */
 #if !defined(STM32_TIMCAP_TIM17_IRQ_PRIORITY) || defined(__DOXYGEN__)
@@ -206,6 +223,10 @@
 #error "TIM9 not present in the selected device"
 #endif
 
+#if STM32_TIMCAP_USE_TIM14 && !STM32_HAS_TIM14
+#error "TIM14 not present in the selected device"
+#endif
+
 #if STM32_TIMCAP_USE_TIM17 && !STM32_HAS_TIM17
 #error "TIM17 not present in the selected device"
 #endif
@@ -213,7 +234,8 @@
 #if !STM32_TIMCAP_USE_TIM1 && !STM32_TIMCAP_USE_TIM2 &&                           \
     !STM32_TIMCAP_USE_TIM3 && !STM32_TIMCAP_USE_TIM4 &&                           \
     !STM32_TIMCAP_USE_TIM5 && !STM32_TIMCAP_USE_TIM8 &&                           \
-    !STM32_TIMCAP_USE_TIM9 && !STM32_TIMCAP_USE_TIM17
+    !STM32_TIMCAP_USE_TIM9 && !STM32_TIMCAP_USE_TIM14 &&                          \
+	!STM32_TIMCAP_USE_TIM17
 #error "TIMCAP driver activated but no TIM peripheral assigned"
 #endif
 
@@ -250,6 +272,11 @@
 #if STM32_TIMCAP_USE_TIM9 &&                                                   \
     !OSAL_IRQ_IS_VALID_PRIORITY(STM32_TIMCAP_TIM9_IRQ_PRIORITY)
 #error "Invalid IRQ priority assigned to TIM9"
+#endif
+
+#if STM32_TIMCAP_USE_TIM14 &&                                                   \
+    !OSAL_IRQ_IS_VALID_PRIORITY(STM32_TIMCAP_TIM14_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to TIM14"
 #endif
 
 #if STM32_TIMCAP_USE_TIM17 &&                                                   \
@@ -395,6 +422,10 @@ extern TIMCAPDriver TIMCAPD8;
 
 #if STM32_TIMCAP_USE_TIM9 && !defined(__DOXYGEN__)
 extern TIMCAPDriver TIMCAPD9;
+#endif
+
+#if STM32_TIMCAP_USE_TIM14 && !defined(__DOXYGEN__)
+extern TIMCAPDriver TIMCAPD14;
 #endif
 
 #if STM32_TIMCAP_USE_TIM17 && !defined(__DOXYGEN__)
