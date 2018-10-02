@@ -81,7 +81,9 @@ SECTIONS
         *(.rodata.*)
         *(.glue_7t)
         *(.glue_7)
+        *(.plt)
         *(.gcc*)
+        . = ALIGN(16);
     } > flash
 
     .ARM.extab :
@@ -374,6 +376,7 @@ SECTIONS
         __core_git_desc_start = .;
         KEEP(*(.core_git_desc)) ;
         __core_git_desc_end = .;
+       . = ALIGN(16);        
     } > flash
     
     .wrks_git_desc : ALIGN(16) SUBALIGN(16)
@@ -381,10 +384,12 @@ SECTIONS
         __wrks_git_desc_start = .;
         KEEP(*(.wrks_git_desc)) ;
         __wrks_git_desc_end = .;
+       . = ALIGN(16);        
     } > flash
 
     .tags : ALIGN(16) SUBALIGN(4)
     {
         KEEP(*(.tags)) ;
+       . = ALIGN(16);        
     } > flash
 }
